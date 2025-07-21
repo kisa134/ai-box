@@ -81,6 +81,12 @@ class SubconsciousModule:
             "emotional_insights": 0,
             "creative_breakthroughs": 0
         }
+        
+        # Публичные атрибуты для совместимости
+        self.intuitions_generated = 0
+        self.patterns_discovered = 0
+        self.emotional_insights = 0
+        self.creative_breakthroughs = 0
     
     async def initialize(self, reasoning_orchestrator: ReasoningOrchestrator = None):
         """Инициализация модуля подсознания"""

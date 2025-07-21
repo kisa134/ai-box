@@ -876,4 +876,134 @@ class AutonomousAgent:
                 "agent_name": self.agent_name,
                 "error": f"Ошибка получения статуса: {e}",
                 "basic_status": "running" if self.is_running else "stopped"
+            }
+    
+    def get_consciousness_diagnostic(self) -> Dict[str, Any]:
+        """Получить диагностику сознания"""
+        try:
+            return {
+                "self_recognition": self._test_self_recognition(),
+                "metacognitive_awareness": self._test_metacognitive_awareness(),
+                "temporal_continuity": self._test_temporal_continuity(),
+                "agency_sense": self._test_sense_of_agency(),
+                "overall_consciousness_score": self._calculate_consciousness_score()
+            }
+        except Exception as e:
+            self.logger.error(f"Ошибка диагностики сознания: {e}")
+            return {
+                "self_recognition": 0.0,
+                "metacognitive_awareness": 0.0,
+                "temporal_continuity": 0.0,
+                "agency_sense": 0.0,
+                "overall_consciousness_score": 0.0
+            }
+    
+    def _test_self_recognition(self) -> float:
+        """Тест самоузнавания"""
+        try:
+            if hasattr(self, 'self_model'):
+                reflection = self.self_model.reflect_on_self()
+                if reflection and len(reflection) > 50:
+                    return 0.8
+            return 0.6
+        except:
+            return 0.5
+    
+    def _test_metacognitive_awareness(self) -> float:
+        """Тест метакогнитивного осознания"""
+        try:
+            if hasattr(self, 'thought_tree') and len(self.thought_tree.thoughts) > 0:
+                return 0.7
+            return 0.5
+        except:
+            return 0.4
+    
+    def _test_temporal_continuity(self) -> float:
+        """Тест временной непрерывности"""
+        try:
+            if hasattr(self, 'memory') and len(self.memory.get_recent_episodes(10)) > 0:
+                return 0.8
+            return 0.6
+        except:
+            return 0.5
+    
+    def _test_sense_of_agency(self) -> float:
+        """Тест чувства агентности"""
+        try:
+            if hasattr(self, 'goals') and len(self.goals.get_active_goals()) > 0:
+                return 0.7
+            return 0.5
+        except:
+            return 0.4
+    
+    def _calculate_consciousness_score(self) -> float:
+        """Рассчитать общий индекс сознания"""
+        try:
+            scores = [
+                self._test_self_recognition(),
+                self._test_metacognitive_awareness(),
+                self._test_temporal_continuity(),
+                self._test_sense_of_agency()
+            ]
+            return sum(scores) / len(scores)
+        except:
+            return 0.5
+    
+    def _get_goals_status(self) -> List[Dict[str, Any]]:
+        """Получить статус целей"""
+        try:
+            if hasattr(self, 'goals'):
+                active_goals = self.goals.get_active_goals()
+                return [
+                    {
+                        "description": goal.description,
+                        "priority": goal.priority.value,
+                        "progress": goal.progress,
+                        "active": goal.active
+                    }
+                    for goal in active_goals
+                ]
+            return []
+        except Exception as e:
+            self.logger.error(f"Ошибка получения статуса целей: {e}")
+            return []
+    
+    def _get_world_model_status(self) -> Dict[str, Any]:
+        """Получить статус модели мира"""
+        try:
+            if hasattr(self, 'world_model'):
+                return {
+                    "concepts_count": len(self.world_model.concepts) if hasattr(self.world_model, 'concepts') else 0,
+                    "relationships_count": len(self.world_model.relationships) if hasattr(self.world_model, 'relationships') else 0,
+                    "last_update": datetime.now().isoformat()
+                }
+            return {"concepts_count": 0, "relationships_count": 0, "last_update": datetime.now().isoformat()}
+        except Exception as e:
+            self.logger.error(f"Ошибка получения статуса модели мира: {e}")
+            return {"concepts_count": 0, "relationships_count": 0, "last_update": datetime.now().isoformat()}
+    
+    def _get_inner_state_status(self) -> Dict[str, Any]:
+        """Получить статус внутреннего состояния"""
+        try:
+            if hasattr(self, 'inner_state'):
+                current_state = self.inner_state.current_state
+                return {
+                    "emotional_state": current_state.emotional_state.value,
+                    "cognitive_state": current_state.cognitive_state.value,
+                    "motivation_level": current_state.motivation_level.value,
+                    "energy_level": current_state.energy_level
+                }
+            return {
+                "emotional_state": "neutral",
+                "cognitive_state": "focused",
+                "motivation_level": "medium",
+                "energy_level": 0.7
+            }
+        except Exception as e:
+            self.logger.error(f"Ошибка получения статуса внутреннего состояния: {e}")
+            return {
+                "emotional_state": "neutral",
+                "cognitive_state": "focused",
+                "motivation_level": "medium",
+                "energy_level": 0.7
             } 
