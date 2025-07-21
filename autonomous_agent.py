@@ -22,7 +22,7 @@ from core.subconscious_module import SubconsciousModule
 from core.async_manager import async_manager
 from core.memory_optimizer import memory_optimizer
 from core.ollama_cache import ollama_cache
-from config import Config
+from config.config import Config
 
 class AutonomousAgent:
     """
