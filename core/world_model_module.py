@@ -106,6 +106,8 @@ class WorldModelModule:
         self.world_state: Dict[str, Any] = {}
         self.perception_log: List[Dict[str, Any]] = []
         self.uncertainty_threshold = 0.3
+        self.knowledge_graph: Dict[str, Any] = {} # Новый атрибут для динамического обучения
+        self.update_history: List[Dict[str, Any]] = [] # Новый атрибут для истории обновлений
         
     def add_entity(self, 
                    entity_type: str, 
@@ -378,3 +380,188 @@ class WorldModelModule:
         
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2) 
+
+    def update_knowledge(self, new_information: str, source: str = "interaction", confidence: float = 0.8):
+        """Обновить знания о мире с динамическим обучением"""
+        
+        # Анализ новой информации
+        extracted_concepts = self._extract_concepts(new_information)
+        relationships = self._find_relationships(extracted_concepts)
+        
+        # Динамическое обновление знаний
+        for concept in extracted_concepts:
+            if concept not in self.knowledge_graph:
+                # Новое понятие
+                self.knowledge_graph[concept] = {
+                    "definition": self._generate_definition(concept, new_information),
+                    "relationships": {},
+                    "confidence": confidence,
+                    "sources": [source],
+                    "last_updated": datetime.now().isoformat(),
+                    "usage_count": 1
+                }
+            else:
+                # Обновление существующего понятия
+                existing = self.knowledge_graph[concept]
+                existing["confidence"] = min(1.0, existing["confidence"] + 0.1)
+                existing["sources"].append(source)
+                existing["last_updated"] = datetime.now().isoformat()
+                existing["usage_count"] += 1
+                
+                # Обновление определения если новая информация более свежая
+                if confidence > existing["confidence"]:
+                    existing["definition"] = self._generate_definition(concept, new_information)
+        
+        # Обновление связей
+        for rel in relationships:
+            source_concept, target_concept, relationship_type = rel
+            if source_concept in self.knowledge_graph and target_concept in self.knowledge_graph:
+                if "relationships" not in self.knowledge_graph[source_concept]:
+                    self.knowledge_graph[source_concept]["relationships"] = {}
+                
+                self.knowledge_graph[source_concept]["relationships"][target_concept] = {
+                    "type": relationship_type,
+                    "confidence": confidence,
+                    "last_updated": datetime.now().isoformat()
+                }
+        
+        # Логирование обновления
+        self._log_knowledge_update(new_information, source, confidence)
+    
+    def _extract_concepts(self, text: str) -> List[str]:
+        """Извлечение концепций из текста"""
+        # Простое извлечение существительных и ключевых слов
+        words = text.lower().split()
+        concepts = []
+        
+        # Фильтрация стоп-слов и извлечение концепций
+        stop_words = {"и", "в", "на", "с", "по", "для", "от", "до", "из", "к", "у", "о", "об", "а", "но", "или", "что", "как", "где", "когда", "почему"}
+        
+        for word in words:
+            if len(word) > 3 and word not in stop_words:
+                # Простая эвристика для определения концепций
+                if word.endswith(('ость', 'ние', 'ство', 'изм', 'ция')):
+                    concepts.append(word)
+                elif word in ['сознание', 'искусственный', 'интеллект', 'обучение', 'память', 'мышление']:
+                    concepts.append(word)
+        
+        return list(set(concepts))
+    
+    def _find_relationships(self, concepts: List[str]) -> List[tuple]:
+        """Поиск связей между концепциями"""
+        relationships = []
+        
+        # Простые эвристики для определения связей
+        for i, concept1 in enumerate(concepts):
+            for concept2 in concepts[i+1:]:
+                if concept1 != concept2:
+                    # Определение типа связи
+                    relationship_type = self._determine_relationship_type(concept1, concept2)
+                    if relationship_type:
+                        relationships.append((concept1, concept2, relationship_type))
+        
+        return relationships
+    
+    def _determine_relationship_type(self, concept1: str, concept2: str) -> str:
+        """Определение типа связи между концепциями"""
+        # Простые эвристики
+        if 'сознание' in concept1 and 'искусственный' in concept2:
+            return "is_a"
+        elif 'обучение' in concept1 and 'память' in concept2:
+            return "requires"
+        elif 'мышление' in concept1 and 'логика' in concept2:
+            return "uses"
+        else:
+            return "related_to"
+    
+    def _generate_definition(self, concept: str, context: str) -> str:
+        """Генерация определения концепции"""
+        # Простые определения на основе контекста
+        definitions = {
+            "сознание": "Способность осознавать себя и окружающий мир",
+            "искусственный": "Созданный человеком, не природный",
+            "интеллект": "Способность к мышлению и решению задач",
+            "обучение": "Процесс приобретения знаний и навыков",
+            "память": "Способность хранить и воспроизводить информацию",
+            "мышление": "Процесс обработки информации и решения задач"
+        }
+        
+        return definitions.get(concept, f"Концепция: {concept}")
+    
+    def _log_knowledge_update(self, information: str, source: str, confidence: float):
+        """Логирование обновления знаний"""
+        self.update_history.append({
+            "timestamp": datetime.now().isoformat(),
+            "information": information[:100] + "..." if len(information) > 100 else information,
+            "source": source,
+            "confidence": confidence
+        })
+    
+    def learn_from_interaction(self, user_input: str, agent_response: str, outcome: str):
+        """Обучение на основе взаимодействия"""
+        
+        # Анализ успешности взаимодействия
+        success_score = self._evaluate_interaction_success(user_input, agent_response, outcome)
+        
+        # Обновление знаний на основе результата
+        self.update_knowledge(
+            f"Взаимодействие: {user_input} -> {agent_response} -> {outcome}",
+            source="interaction",
+            confidence=success_score
+        )
+        
+        # Обновление стратегий взаимодействия
+        self._update_interaction_strategies(user_input, agent_response, success_score)
+    
+    def _evaluate_interaction_success(self, user_input: str, agent_response: str, outcome: str) -> float:
+        """Оценка успешности взаимодействия"""
+        success_score = 0.5  # Базовый уровень
+        
+        # Простые эвристики для оценки
+        if "спасибо" in outcome.lower() or "хорошо" in outcome.lower():
+            success_score += 0.3
+        elif "неправильно" in outcome.lower() or "ошибка" in outcome.lower():
+            success_score -= 0.3
+        
+        if len(agent_response) > 50:  # Подробный ответ
+            success_score += 0.1
+        
+        return max(0.0, min(1.0, success_score))
+    
+    def _update_interaction_strategies(self, user_input: str, agent_response: str, success_score: float):
+        """Обновление стратегий взаимодействия"""
+        # Анализ паттернов успешных взаимодействий
+        if success_score > 0.7:
+            # Успешное взаимодействие - запомнить паттерн
+            pattern = {
+                "input_type": self._classify_input_type(user_input),
+                "response_style": self._classify_response_style(agent_response),
+                "success_score": success_score
+            }
+            
+            if "successful_patterns" not in self.knowledge_graph:
+                self.knowledge_graph["successful_patterns"] = []
+            
+            self.knowledge_graph["successful_patterns"].append(pattern)
+    
+    def _classify_input_type(self, user_input: str) -> str:
+        """Классификация типа ввода пользователя"""
+        input_lower = user_input.lower()
+        
+        if "?" in user_input:
+            return "question"
+        elif any(word in input_lower for word in ["сделай", "создай", "напиши"]):
+            return "request"
+        elif any(word in input_lower for word in ["объясни", "расскажи", "что такое"]):
+            return "explanation_request"
+        else:
+            return "statement"
+    
+    def _classify_response_style(self, response: str) -> str:
+        """Классификация стиля ответа"""
+        if len(response) > 200:
+            return "detailed"
+        elif len(response) > 50:
+            return "moderate"
+        else:
+            return "concise" 

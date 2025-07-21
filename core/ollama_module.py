@@ -93,6 +93,22 @@ class OllamaClient:
                 vram_requirement=16,
                 priority=7
             ),
+            "deepseek-r1:latest": ModelConfig(
+                name="deepseek-r1:latest",
+                type=ModelType.REASONING,
+                temperature=0.6,
+                max_tokens=2048,
+                vram_requirement=12,
+                priority=8
+            ),
+            "qwen3:latest": ModelConfig(
+                name="qwen3:latest",
+                type=ModelType.REASONING,
+                temperature=0.7,
+                max_tokens=2048,
+                vram_requirement=12,
+                priority=7
+            ),
             "phi3:latest": ModelConfig(
                 name="phi3:latest",
                 type=ModelType.TESTING,
@@ -105,8 +121,15 @@ class OllamaClient:
     
     async def initialize(self):
         """Инициализация клиента"""
-        self.session = aiohttp.ClientSession()
+        if not self.session:
+            self.session = aiohttp.ClientSession()
         await self._discover_models()
+    
+    async def close(self):
+        """Закрыть клиент"""
+        if self.session:
+            await self.session.close()
+            self.session = None
     
     async def _discover_models(self):
         """Обнаружение доступных моделей"""
@@ -132,6 +155,26 @@ class OllamaClient:
                               temperature: float = None,
                               max_tokens: int = None,
                               system_prompt: str = None) -> Dict[str, Any]:
+        
+        # Проверить кэш
+        cache_key = f"{prompt}_{model_name}_{temperature}_{max_tokens}"
+        cached_result = ollama_cache.get(prompt, model_name, {
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "system_prompt": system_prompt
+        })
+        
+        if cached_result:
+            self.logger.info(f"Кэш hit для {model_name}")
+            return {
+                "success": True,
+                "content": cached_result.content,
+                "model": cached_result.model_used,
+                "processing_time": cached_result.processing_time,
+                "tokens_used": cached_result.tokens_used,
+                "confidence": cached_result.confidence,
+                "cached": True
+            }
         """Генерация ответа через Ollama"""
         
         if not self.session:
@@ -169,13 +212,30 @@ class OllamaClient:
                     data = await response.json()
                     processing_time = time.time() - start_time
                     
-                    return {
+                    result = {
                         "content": data.get("response", ""),
                         "model": model_name,
                         "processing_time": processing_time,
                         "tokens_used": data.get("eval_count", 0),
                         "success": True
                     }
+                    
+                    # Сохранить в кэш
+                    ollama_cache.set(
+                        prompt=prompt,
+                        model=model_name,
+                        content=result["content"],
+                        processing_time=processing_time,
+                        tokens_used=data.get("eval_count", 0),
+                        confidence=0.8,  # Placeholder
+                        context={
+                            "temperature": temperature,
+                            "max_tokens": max_tokens,
+                            "system_prompt": system_prompt
+                        }
+                    )
+                    
+                    return result
                 else:
                     error_text = await response.text()
                     self.logger.error(f"Ошибка генерации: {response.status} - {error_text}")

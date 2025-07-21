@@ -17,6 +17,11 @@ from core.world_model_module import WorldModelModule
 from core.thought_tree_module import ThoughtTreeModule, ThoughtType
 from core.self_model_module import SelfModelModule
 from core.llm_module import LLMModule
+from core.ollama_module import ReasoningOrchestrator, ModelType, ReasoningRequest
+from core.subconscious_module import SubconsciousModule
+from core.async_manager import async_manager
+from core.memory_optimizer import memory_optimizer
+from core.ollama_cache import ollama_cache
 from config import Config
 
 class AutonomousAgent:
@@ -158,6 +163,38 @@ class AutonomousAgent:
             self.initialization_errors.append(f"LLM: {e}")
             self.llm = None
         
+        # Reasoning Orchestrator (Ollama)
+        try:
+            self.reasoning_orchestrator = ReasoningOrchestrator()
+            print("✅ ReasoningOrchestrator инициализирован")
+        except Exception as e:
+            print(f"❌ Ошибка инициализации ReasoningOrchestrator: {e}")
+            self.initialization_errors.append(f"ReasoningOrchestrator: {e}")
+            self.reasoning_orchestrator = None
+        
+        # Подсознание
+        try:
+            self.subconscious = SubconsciousModule(self.agent_name)
+            print("✅ SubconsciousModule инициализирован")
+        except Exception as e:
+            print(f"❌ Ошибка инициализации SubconsciousModule: {e}")
+            self.initialization_errors.append(f"SubconsciousModule: {e}")
+            self.subconscious = None
+        
+        # Инициализация оптимизаторов
+        try:
+            # Запустить кэш Ollama
+            ollama_cache.start_cleanup_thread()
+            print("✅ OllamaCache инициализирован")
+            
+            # Запустить оптимизатор памяти
+            memory_optimizer.start_cleanup_thread()
+            print("✅ MemoryOptimizer инициализирован")
+            
+        except Exception as e:
+            print(f"❌ Ошибка инициализации оптимизаторов: {e}")
+            self.initialization_errors.append(f"Optimizers: {e}")
+        
         # Проверка критических модулей
         if self.goals is None or self.inner_state is None:
             print("⚠️  Критические модули не инициализированы. Агент может работать с ограничениями.")
@@ -174,7 +211,9 @@ class AutonomousAgent:
             "world_model": self.world_model,
             "thought_tree": self.thought_tree,
             "self_model": self.self_model,
-            "llm": self.llm
+            "llm": self.llm,
+            "reasoning_orchestrator": self.reasoning_orchestrator,
+            "subconscious": self.subconscious
         }
         return module_map.get(module_name) is not None
 
@@ -495,7 +534,7 @@ class AutonomousAgent:
         
         return reflection_id
         
-    def process_input(self, user_input: str, context: Dict[str, Any] = None) -> str:
+    async def process_input(self, user_input: str, context: Dict[str, Any] = None) -> str:
         """Обработать ввод пользователя"""
         
         if context is None:
@@ -545,7 +584,7 @@ class AutonomousAgent:
                     self.logger.warning(f"Ошибка обновления эмоционального состояния: {e}")
             
             # Сгенерировать ответ
-            response = self.generate_response(user_input, context)
+            response = await self.generate_response(user_input, context)
             
             # Сохранить ответ в память
             if self.is_module_available("memory"):
@@ -565,17 +604,17 @@ class AutonomousAgent:
             # Fallback ответ
             return f"Извините, произошла ошибка при обработке вашего запроса. Я ({self.agent_name}) все еще учусь и развиваюсь."
         
-    def generate_response(self, user_input: str, context: Dict[str, Any]) -> str:
-        """Сгенерировать ответ пользователю с помощью LLM"""
+    async def generate_response(self, user_input: str, context: Dict[str, Any]) -> str:
+        """Сгенерировать ответ пользователю с помощью Ollama"""
         
-        # Подготовить контекст для LLM
-        llm_context = {}
+        # Подготовить контекст для reasoning
+        reasoning_context = {}
         
         # Добавить эмоциональное состояние
         if self.is_module_available("inner_state"):
             try:
                 emotional_state = self.inner_state.current_state.emotional_state.value
-                llm_context['emotional_state'] = emotional_state
+                reasoning_context['emotional_state'] = emotional_state
             except Exception as e:
                 self.logger.warning(f"Ошибка получения эмоционального состояния: {e}")
         
@@ -584,7 +623,7 @@ class AutonomousAgent:
             try:
                 current_goal = self.goals.get_current_goal()
                 if current_goal:
-                    llm_context['current_goal'] = current_goal.description
+                    reasoning_context['current_goal'] = current_goal.description
             except Exception as e:
                 self.logger.warning(f"Ошибка получения текущей цели: {e}")
         
@@ -594,21 +633,84 @@ class AutonomousAgent:
                 similar_episodes = self.memory.retrieve_similar(user_input, 2)
                 if similar_episodes:
                     memory_summary = "; ".join([ep["content"][:100] for ep in similar_episodes])
-                    llm_context['memory_context'] = memory_summary
+                    reasoning_context['memory_context'] = memory_summary
             except Exception as e:
                 self.logger.warning(f"Ошибка получения воспоминаний: {e}")
         
-        # Использовать LLM для генерации ответа
-        if self.is_module_available("llm"):
+        # Использовать Ollama для генерации ответа
+        if self.is_module_available("reasoning_orchestrator"):
             try:
-                return self.llm.generate_response(user_input, llm_context)
+                # Определить тип reasoning на основе ввода
+                model_type = self._determine_reasoning_type(user_input)
+                
+                # Создать reasoning запрос
+                reasoning_request = ReasoningRequest(
+                    prompt=user_input,
+                    model_type=model_type,
+                    context=reasoning_context,
+                    priority=8,
+                    require_explanation=True
+                )
+                
+                # Отправить запрос и получить ответ
+                try:
+                    # Использовать async_manager для безопасного выполнения
+                    request_id = await async_manager.run_coroutine_safe(
+                        self.reasoning_orchestrator.submit_reasoning_request(reasoning_request)
+                    )
+                    
+                    response = await async_manager.run_coroutine_safe(
+                        self.reasoning_orchestrator.get_reasoning_response(request_id)
+                    )
+                    
+                    if response and hasattr(response, 'content') and response.content:
+                        # Обработать в подсознании
+                        if self.is_module_available("subconscious"):
+                            try:
+                                await async_manager.run_coroutine_safe(
+                                    self.subconscious.process_conscious_thought(
+                                        response.content, 
+                                        "reasoning", 
+                                        reasoning_context
+                                    )
+                                )
+                            except Exception as e:
+                                self.logger.warning(f"Ошибка обработки в подсознании: {e}")
+                        
+                        return response.content
+                    else:
+                        return self._fallback_response(user_input, reasoning_context)
+                        
+                except Exception as e:
+                    self.logger.error(f"Ошибка выполнения reasoning запроса: {e}")
+                    return self._fallback_response(user_input, reasoning_context)
+                    
             except Exception as e:
-                self.logger.error(f"Ошибка генерации ответа через LLM: {e}")
-                # Fallback на простые шаблоны
-                return self._fallback_response(user_input, llm_context)
+                self.logger.error(f"Ошибка генерации ответа через Ollama: {e}")
+                return self._fallback_response(user_input, reasoning_context)
         else:
-            # Fallback если LLM недоступен
-            return self._fallback_response(user_input, llm_context)
+            # Fallback если Ollama недоступен
+            return self._fallback_response(user_input, reasoning_context)
+    
+    def _determine_reasoning_type(self, user_input: str) -> ModelType:
+        """Определить тип reasoning на основе ввода пользователя"""
+        input_lower = user_input.lower()
+        
+        # Ключевые слова для определения типа
+        reflection_keywords = ["чувствую", "думаю", "размышляю", "анализирую", "понимаю", "осознаю"]
+        creative_keywords = ["создай", "придумай", "вообрази", "нарисуй", "напиши", "сочини"]
+        fast_keywords = ["быстро", "кратко", "коротко", "суть", "главное"]
+        
+        if any(keyword in input_lower for keyword in reflection_keywords):
+            return ModelType.REFLECTION
+        elif any(keyword in input_lower for keyword in creative_keywords):
+            return ModelType.CREATIVE
+        elif any(keyword in input_lower for keyword in fast_keywords):
+            return ModelType.FAST
+        else:
+            return ModelType.REASONING
+    
+
     
     def _fallback_response(self, user_input: str, context: Dict[str, Any]) -> str:
         """Простой fallback ответ без LLM"""

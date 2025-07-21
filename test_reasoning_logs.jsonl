@@ -1,0 +1,1 @@
+{"timestamp": 1753128807.2971668, "request": {"prompt": "Тестовый запрос", "model_type": "reasoning", "priority": 5, "context": null}, "response": {"content": "Тестовый ответ", "model_used": "test_model", "reasoning_chain": ["Шаг 1", "Шаг 2"], "confidence": 0.8, "processing_time": 1.5, "vram_used": 0.5, "explanation": {"test": "data"}}}

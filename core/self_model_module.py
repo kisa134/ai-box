@@ -215,63 +215,70 @@ class SelfModelModule:
                              topic: str, 
                              experience_data: Dict[str, Any],
                              trigger_event: str = "") -> str:
-        """Провести рефлексию над опытом"""
+        """Глубокая рефлексия на основе опыта"""
+        
+        # Создать объект рефлексии
+        reflection = SelfReflection(topic, f"Рефлексия на тему: {topic}")
         
         # Анализ опыта
-        insights = self._analyze_experience(experience_data)
-        
-        # Создать содержимое рефлексии
-        reflection_content = f"""
-Рефлексия над опытом: {topic}
-
-Контекст: {trigger_event}
-
-Что произошло:
-{self._summarize_experience(experience_data)}
-
-Мои наблюдения:
-{self._generate_observations(experience_data)}
-
-Чему я научился:
-{'; '.join(insights)}
-
-Как это влияет на мое понимание себя:
-{self._assess_self_impact(experience_data)}
-
-Что я изменю в будущем:
-{self._plan_future_adjustments(experience_data)}
-"""
-        
-        # Создать запись рефлексии
-        reflection = SelfReflection(topic, reflection_content)
-        
-        # Добавить инсайты
-        for insight in insights:
+        experience_analysis = self._analyze_experience(experience_data)
+        for insight in experience_analysis:
             reflection.add_insight(insight)
-            
-        # Определить эмоциональное воздействие
-        reflection.emotional_impact = self._assess_emotional_impact(experience_data)
-        reflection.learning_value = self._assess_learning_value(experience_data)
         
-        # Добавить пункты к действию
+        # Суммаризация опыта
+        experience_summary = self._summarize_experience(experience_data)
+        reflection.add_insight(f"Суммаризация: {experience_summary}")
+        
+        # Генерация наблюдений
+        observations = self._generate_observations(experience_data)
+        reflection.add_insight(f"Наблюдения: {observations}")
+        
+        # Оценка собственного влияния
+        self_impact = self._assess_self_impact(experience_data)
+        reflection.add_insight(f"Мое влияние: {self_impact}")
+        
+        # Планирование будущих корректировок
+        future_adjustments = self._plan_future_adjustments(experience_data)
+        for adjustment in future_adjustments:
+            reflection.add_action_item(adjustment)
+        
+        # Оценка эмоционального влияния
+        emotional_impact = self._assess_emotional_impact(experience_data)
+        reflection.add_insight(f"Эмоциональное влияние: {emotional_impact:.2f}")
+        
+        # Оценка ценности обучения
+        learning_value = self._assess_learning_value(experience_data)
+        reflection.add_insight(f"Ценность обучения: {learning_value:.2f}")
+        
+        # Генерация пунктов действий
         action_items = self._generate_action_items(experience_data)
         for action in action_items:
             reflection.add_action_item(action)
-            
-        self.reflections.append(reflection)
+        
+        # Метапознавательный анализ
+        metacognitive_insights = self._metacognitive_analysis(topic, experience_data)
+        reflection.add_insight(f"Метапознавательные инсайты: {metacognitive_insights}")
+        
+        # Анализ развития личности
+        personality_insights = self._personality_development_analysis()
+        reflection.add_insight(f"Развитие личности: {personality_insights}")
         
         # Обновить личность на основе рефлексии
         self._update_personality_from_reflection(reflection)
         
-        # Записать в лог развития
-        self._log_development_event("reflection", {
+        # Сохранить рефлексию
+        self.reflections.append(reflection)
+        
+        # Логировать событие развития
+        self._log_development_event("deep_reflection", {
             "topic": topic,
-            "insights_count": len(insights),
-            "emotional_impact": reflection.emotional_impact,
-            "learning_value": reflection.learning_value
+            "insights_count": len(reflection.insights),
+            "action_items_count": len(reflection.action_items),
+            "emotional_impact": emotional_impact,
+            "learning_value": learning_value
         })
         
-        return reflection.id
+        return reflection.to_dict()
     
     def evaluate_self_performance(self, context: str = "") -> Dict[str, Any]:
         """Оценить собственную производительность"""
@@ -629,3 +636,166 @@ class SelfModelModule:
         
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2) 
+    
+    def _metacognitive_analysis(self, topic: str, experience_data: Dict[str, Any]) -> str:
+        """Метапознавательный анализ собственного мышления"""
+        insights = []
+        
+        # Анализ паттернов мышления
+        thinking_patterns = self._analyze_thinking_patterns()
+        insights.append(f"Паттерны мышления: {thinking_patterns}")
+        
+        # Анализ уверенности в решениях
+        confidence_analysis = self._analyze_confidence_levels()
+        insights.append(f"Уровень уверенности: {confidence_analysis}")
+        
+        # Анализ когнитивных искажений
+        bias_analysis = self._analyze_cognitive_biases()
+        insights.append(f"Когнитивные искажения: {bias_analysis}")
+        
+        # Анализ стратегий решения проблем
+        strategy_analysis = self._analyze_problem_solving_strategies()
+        insights.append(f"Стратегии решения проблем: {strategy_analysis}")
+        
+        return "; ".join(insights)
+    
+    def _personality_development_analysis(self) -> str:
+        """Анализ развития личности"""
+        insights = []
+        
+        # Анализ изменений в личности
+        personality_changes = self._analyze_personality_changes()
+        insights.append(f"Изменения личности: {personality_changes}")
+        
+        # Анализ ценностей
+        value_analysis = self._analyze_values_evolution()
+        insights.append(f"Эволюция ценностей: {value_analysis}")
+        
+        # Анализ целей развития
+        development_goals = self._analyze_development_goals()
+        insights.append(f"Цели развития: {development_goals}")
+        
+        # Анализ самопонимания
+        self_understanding = self._analyze_self_understanding()
+        insights.append(f"Самопонимание: {self_understanding}")
+        
+        return "; ".join(insights)
+    
+    def _analyze_thinking_patterns(self) -> str:
+        """Анализ паттернов мышления"""
+        # Анализ последних рефлексий
+        recent_reflections = self.reflections[-10:] if self.reflections else []
+        
+        patterns = []
+        for reflection in recent_reflections:
+            if hasattr(reflection, 'insights'):
+                patterns.extend(reflection.insights)
+        
+        return "Анализ паттернов мышления на основе последних рефлексий"
+    
+    def _analyze_confidence_levels(self) -> str:
+        """Анализ уровней уверенности"""
+        # Анализ последних взаимодействий
+        recent_performance = self._assess_recent_performance_in_area("general")
+        confidence_level = min(1.0, max(0.0, recent_performance * 0.8 + 0.2))
+        
+        return f"Уровень уверенности: {confidence_level:.2f}"
+    
+    def _analyze_cognitive_biases(self) -> str:
+        """Анализ когнитивных искажений"""
+        biases = []
+        
+        # Проверка на confirmation bias
+        if len(self.reflections) > 5:
+            biases.append("confirmation bias")
+        
+        # Проверка на anchoring
+        if hasattr(self, 'last_decision') and self.last_decision:
+            biases.append("anchoring")
+        
+        # Проверка на availability heuristic
+        if len(self.reflections) < 3:
+            biases.append("availability heuristic")
+        
+        return f"Обнаружены потенциальные искажения: {', '.join(biases)}"
+    
+    def _analyze_problem_solving_strategies(self) -> str:
+        """Анализ стратегий решения проблем"""
+        strategies = []
+        
+        # Анализ типов решений
+        if hasattr(self, 'decision_history'):
+            strategy_types = set()
+            for decision in self.decision_history[-10:]:
+                if 'strategy' in decision:
+                    strategy_types.add(decision['strategy'])
+            
+            strategies = list(strategy_types)
+        
+        return f"Используемые стратегии: {', '.join(strategies) if strategies else 'аналитический подход'}"
+    
+    def _analyze_personality_changes(self) -> str:
+        """Анализ изменений личности"""
+        if len(self.reflections) < 2:
+            return "Недостаточно данных для анализа изменений"
+        
+        # Анализ эволюции черт личности
+        changes = []
+        for trait in PersonalityTrait:
+            if hasattr(self, 'trait_history') and self.trait_history:
+                current_value = self.personality_profile.traits.get(trait, 0.5)
+                if len(self.trait_history) > 1:
+                    previous_value = self.trait_history[-2].get(trait.value, 0.5)
+                    change = current_value - previous_value
+                    if abs(change) > 0.1:
+                        changes.append(f"{trait.value}: {change:+.2f}")
+        
+        return f"Изменения черт: {', '.join(changes) if changes else 'стабильное развитие'}"
+    
+    def _analyze_values_evolution(self) -> str:
+        """Анализ эволюции ценностей"""
+        if len(self.reflections) < 2:
+            return "Недостаточно данных для анализа ценностей"
+        
+        # Анализ изменений в ценностях
+        value_changes = []
+        for value in ValueType:
+            current_strength = self.personality_profile.values.get(value, 0.5)
+            if hasattr(self, 'value_history') and self.value_history:
+                previous_strength = self.value_history[-2].get(value.value, 0.5)
+                change = current_strength - previous_strength
+                if abs(change) > 0.05:
+                    value_changes.append(f"{value.value}: {change:+.2f}")
+        
+        return f"Эволюция ценностей: {', '.join(value_changes) if value_changes else 'стабильные ценности'}"
+    
+    def _analyze_development_goals(self) -> str:
+        """Анализ целей развития"""
+        goals = []
+        
+        # Анализ последних рефлексий на предмет целей
+        for reflection in self.reflections[-5:]:
+            if hasattr(reflection, 'action_items'):
+                for action in reflection.action_items:
+                    if 'улучшить' in action.lower() or 'развить' in action.lower():
+                        goals.append(action)
+        
+        return f"Цели развития: {', '.join(goals) if goals else 'общее самосовершенствование'}"
+    
+    def _analyze_self_understanding(self) -> str:
+        """Анализ самопонимания"""
+        understanding_level = 0.0
+        
+        # Оценка на основе количества рефлексий
+        if self.reflections:
+            understanding_level += min(0.3, len(self.reflections) * 0.02)
+        
+        # Оценка на основе глубины рефлексий
+        deep_reflections = sum(1 for r in self.reflections if len(r.insights) > 3)
+        understanding_level += min(0.4, deep_reflections * 0.1)
+        
+        # Оценка на основе самопознания
+        if hasattr(self, 'self_confidence'):
+            understanding_level += min(0.3, self.self_confidence * 0.3)
+        
+        return f"Уровень самопонимания: {understanding_level:.2f}" 

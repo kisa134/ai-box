@@ -100,277 +100,352 @@ class SubconsciousModule:
     async def process_conscious_thought(self, thought_content: str, thought_type: str, context: Dict[str, Any] = None):
         """Обработать сознательную мысль в подсознании"""
         
-        # Создать подсознательную мысль
-        subconscious_thought = SubconsciousThought(
-            id=f"sub_{int(time.time() * 1000)}",
-            content=thought_content,
-            process_type=self._map_conscious_to_subconscious(thought_type),
-            intensity=self._calculate_intensity(thought_content, context),
-            timestamp=datetime.now(),
-            emotional_charge=self.emotional_processor.analyze_emotional_charge(thought_content),
-            clarity=self._calculate_clarity(thought_content)
-        )
+        # Анализ мысли
+        analysis = await self._analyze_thought(thought_content, thought_type)
         
-        self.subconscious_thoughts.append(subconscious_thought)
+        # Генерация интуиций
+        intuitions = await self._generate_intuitions(thought_content, analysis)
         
-        # Запустить обработку
-        await self._process_subconscious_thought(subconscious_thought)
-        
-        # Проверить на интуитивные озарения
-        if subconscious_thought.intensity > self.intuition_threshold:
-            await self._trigger_intuition(subconscious_thought)
-    
-    async def _process_subconscious_thought(self, thought: SubconsciousThought):
-        """Обработать подсознательную мысль"""
+        # Обнаружение паттернов
+        patterns = await self._discover_patterns(thought_content, context)
         
         # Эмоциональная обработка
-        emotional_insight = await self.emotional_processor.process_emotion(thought)
-        if emotional_insight:
-            self.stats["emotional_insights"] += 1
-        
-        # Распознавание паттернов
-        pattern_insight = await self.pattern_recognizer.analyze_pattern(thought)
-        if pattern_insight:
-            self.stats["patterns_discovered"] += 1
+        emotional_insights = await self._process_emotions(thought_content, context)
         
         # Консолидация памяти
-        await self.memory_consolidator.consolidate_thought(thought)
-    
-    async def _trigger_intuition(self, trigger_thought: SubconsciousThought):
-        """Запустить процесс интуитивного озарения"""
+        memory_consolidation = await self._consolidate_memory(thought_content, context)
         
-        if not self.reasoning_orchestrator:
-            return
+        # Обновление состояния подсознания
+        self._update_subconscious_state(analysis, intuitions, patterns, emotional_insights)
         
-        # Создать запрос на интуитивное мышление
-        intuition_request = ReasoningRequest(
-            prompt=f"Интуитивное озарение на основе мысли: {trigger_thought.content}",
-            model_type=ModelType.SUBCONSCIOUS,
-            context={
-                "trigger_thought": trigger_thought.content,
-                "intensity": trigger_thought.intensity,
-                "emotional_charge": trigger_thought.emotional_charge,
-                "process_type": trigger_thought.process_type.value
-            },
-            priority=8,
-            require_explanation=True
-        )
+        # Интеграция с основными модулями
+        await self._integrate_with_main_modules(thought_content, analysis, intuitions)
         
-        # Отправить запрос
-        request_id = await self.reasoning_orchestrator.submit_reasoning_request(intuition_request)
-        
-        # Получить ответ
-        response = await self.reasoning_orchestrator.get_reasoning_response(request_id)
-        
-        if response and response.content:
-            # Создать интуитивное озарение
-            intuition = SubconsciousThought(
-                id=f"intuition_{int(time.time() * 1000)}",
-                content=response.content,
-                process_type=SubconsciousProcessType.INTUITION,
-                intensity=response.confidence,
-                timestamp=datetime.now(),
-                related_conscious_thoughts=[trigger_thought.id],
-                emotional_charge=trigger_thought.emotional_charge,
-                clarity=response.confidence
-            )
-            
-            self.subconscious_thoughts.append(intuition)
-            self.stats["intuitions_generated"] += 1
-            
-            # Залогировать интуицию
-            if self.explainability_logger:
-                self.explainability_logger.log_reasoning_request(intuition_request, response)
-    
-    async def _run_intuition_process(self):
-        """Фоновый процесс генерации интуиций"""
-        while True:
-            try:
-                # Проверить накопленные мысли на интуитивные связи
-                recent_thoughts = [
-                    t for t in self.subconscious_thoughts 
-                    if (datetime.now() - t.timestamp).seconds < 3600  # Последний час
-                ]
-                
-                if len(recent_thoughts) >= 3:
-                    # Искать связи между мыслями
-                    connections = self._find_thought_connections(recent_thoughts)
-                    
-                    for connection in connections:
-                        if connection["strength"] > 0.8:
-                            await self._generate_connection_intuition(connection)
-                
-                await asyncio.sleep(60)  # Проверка каждую минуту
-                
-            except Exception as e:
-                self.logger.error(f"Ошибка в процессе интуиции: {e}")
-                await asyncio.sleep(30)
-    
-    async def _run_emotional_processing(self):
-        """Фоновый процесс обработки эмоций"""
-        while True:
-            try:
-                # Обработать накопленные эмоциональные данные
-                emotional_thoughts = [
-                    t for t in self.subconscious_thoughts 
-                    if t.process_type == SubconsciousProcessType.EMOTIONAL_PROCESSING
-                ]
-                
-                if emotional_thoughts:
-                    await self.emotional_processor.process_emotional_batch(emotional_thoughts)
-                
-                await asyncio.sleep(120)  # Каждые 2 минуты
-                
-            except Exception as e:
-                self.logger.error(f"Ошибка в обработке эмоций: {e}")
-                await asyncio.sleep(60)
-    
-    async def _run_pattern_recognition(self):
-        """Фоновый процесс распознавания паттернов"""
-        while True:
-            try:
-                # Анализировать паттерны в мыслях
-                await self.pattern_recognizer.analyze_global_patterns(self.subconscious_thoughts)
-                
-                await asyncio.sleep(300)  # Каждые 5 минут
-                
-            except Exception as e:
-                self.logger.error(f"Ошибка в распознавании паттернов: {e}")
-                await asyncio.sleep(120)
-    
-    async def _run_memory_consolidation(self):
-        """Фоновый процесс консолидации памяти"""
-        while True:
-            try:
-                # Консолидировать накопленные мысли
-                await self.memory_consolidator.consolidate_batch(self.subconscious_thoughts)
-                
-                await asyncio.sleep(self.consolidation_interval)
-                
-            except Exception as e:
-                self.logger.error(f"Ошибка в консолидации памяти: {e}")
-                await asyncio.sleep(300)
-    
-    def _map_conscious_to_subconscious(self, conscious_type: str) -> SubconsciousProcessType:
-        """Сопоставить сознательную мысль с подсознательным процессом"""
-        mapping = {
-            "analysis": SubconsciousProcessType.PATTERN_RECOGNITION,
-            "reflection": SubconsciousProcessType.EMOTIONAL_PROCESSING,
-            "creative": SubconsciousProcessType.CREATIVE_INCUBATION,
-            "memory": SubconsciousProcessType.MEMORY_CONSOLIDATION,
-            "intuition": SubconsciousProcessType.INTUITION
+        return {
+            "analysis": analysis,
+            "intuitions": intuitions,
+            "patterns": patterns,
+            "emotional_insights": emotional_insights,
+            "memory_consolidation": memory_consolidation
         }
-        return mapping.get(conscious_type, SubconsciousProcessType.EMOTIONAL_PROCESSING)
     
-    def _calculate_intensity(self, content: str, context: Dict[str, Any] = None) -> float:
-        """Рассчитать интенсивность мысли"""
-        base_intensity = min(len(content) / 1000, 1.0)  # Базовая интенсивность по длине
+    async def _analyze_thought(self, thought_content: str, thought_type: str) -> Dict[str, Any]:
+        """Глубокий анализ мысли"""
+        analysis = {
+            "complexity": self._assess_complexity(thought_content),
+            "emotional_tone": self._analyze_emotional_tone(thought_content),
+            "cognitive_load": self._assess_cognitive_load(thought_content),
+            "novelty": self._assess_novelty(thought_content),
+            "importance": self._assess_importance(thought_content, thought_type)
+        }
         
-        if context:
-            if 'emotional_state' in context:
-                emotional_multiplier = {
-                    'excited': 1.3,
-                    'focused': 1.2,
-                    'curious': 1.1,
-                    'calm': 0.9,
-                    'tired': 0.7
-                }.get(context['emotional_state'], 1.0)
-                base_intensity *= emotional_multiplier
+        # Анализ связей с предыдущими мыслями
+        connections = self._find_thought_connections(thought_content)
+        analysis["connections"] = connections
         
-        return min(base_intensity, 1.0)
+        return analysis
     
-    def _calculate_clarity(self, content: str) -> float:
-        """Рассчитать ясность мысли"""
-        # Простая эвристика на основе структуры и длины
-        if len(content) < 50:
-            return 0.3
-        elif len(content) > 500:
-            return 0.9
-        else:
-            return 0.6
+    async def _generate_intuitions(self, thought_content: str, analysis: Dict[str, Any]) -> List[str]:
+        """Генерация интуиций на основе мысли"""
+        intuitions = []
+        
+        # Интуиции на основе сложности
+        if analysis["complexity"] > 0.7:
+            intuitions.append("Эта мысль требует более глубокого анализа")
+        
+        # Интуиции на основе эмоционального тона
+        if analysis["emotional_tone"] > 0.6:
+            intuitions.append("Эмоциональная составляющая важна для понимания")
+        
+        # Интуиции на основе новизны
+        if analysis["novelty"] > 0.8:
+            intuitions.append("Это новая идея, стоит исследовать дальше")
+        
+        # Интуиции на основе важности
+        if analysis["importance"] > 0.7:
+            intuitions.append("Эта мысль может быть ключевой для развития")
+        
+        self.intuitions_generated += len(intuitions)
+        return intuitions
     
-    def _find_thought_connections(self, thoughts: List[SubconsciousThought]) -> List[Dict[str, Any]]:
-        """Найти связи между мыслями"""
+    async def _discover_patterns(self, thought_content: str, context: Dict[str, Any] = None) -> List[str]:
+        """Обнаружение паттернов в мысли"""
+        patterns = []
+        
+        # Анализ повторяющихся элементов
+        if hasattr(self, 'thought_history') and self.thought_history:
+            recent_thoughts = self.thought_history[-10:]
+            
+            # Поиск повторяющихся тем
+            themes = self._extract_themes(thought_content)
+            for theme in themes:
+                theme_count = sum(1 for thought in recent_thoughts if theme in thought.lower())
+                if theme_count > 2:
+                    patterns.append(f"Повторяющаяся тема: {theme}")
+        
+        # Анализ временных паттернов
+        if context and "timestamp" in context:
+            time_pattern = self._analyze_time_pattern(context["timestamp"])
+            if time_pattern:
+                patterns.append(f"Временной паттерн: {time_pattern}")
+        
+        self.patterns_discovered += len(patterns)
+        return patterns
+    
+    async def _process_emotions(self, thought_content: str, context: Dict[str, Any] = None) -> List[str]:
+        """Обработка эмоций в мысли"""
+        emotional_insights = []
+        
+        # Анализ эмоциональных слов
+        emotional_words = self._extract_emotional_words(thought_content)
+        if emotional_words:
+            emotional_insights.append(f"Эмоциональные элементы: {', '.join(emotional_words)}")
+        
+        # Анализ эмоционального контекста
+        if context and "emotional_state" in context:
+            emotional_insights.append(f"Контекст эмоций: {context['emotional_state']}")
+        
+        # Генерация эмоциональных инсайтов
+        if len(emotional_insights) > 0:
+            self.emotional_insights += 1
+        
+        return emotional_insights
+    
+    async def _consolidate_memory(self, thought_content: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Консолидация памяти"""
+        consolidation = {
+            "strengthened_connections": [],
+            "new_associations": [],
+            "forgotten_elements": []
+        }
+        
+        # Усиление связей с похожими мыслями
+        similar_thoughts = self._find_similar_thoughts(thought_content)
+        if similar_thoughts:
+            consolidation["strengthened_connections"] = similar_thoughts
+        
+        # Создание новых ассоциаций
+        new_associations = self._create_new_associations(thought_content, context)
+        consolidation["new_associations"] = new_associations
+        
+        return consolidation
+    
+    async def _integrate_with_main_modules(self, thought_content: str, analysis: Dict[str, Any], intuitions: List[str]):
+        """Интеграция с основными модулями"""
+        
+        # Интеграция с памятью
+        if hasattr(self, 'memory_module') and self.memory_module:
+            await self._integrate_with_memory(thought_content, analysis)
+        
+        # Интеграция с моделью мира
+        if hasattr(self, 'world_model') and self.world_model:
+            await self._integrate_with_world_model(thought_content, analysis)
+        
+        # Интеграция с self-model
+        if hasattr(self, 'self_model') and self.self_model:
+            await self._integrate_with_self_model(thought_content, intuitions)
+    
+    async def _integrate_with_memory(self, thought_content: str, analysis: Dict[str, Any]):
+        """Интеграция с модулем памяти"""
+        try:
+            # Сохранение мысли в память с метаданными подсознания
+            metadata = {
+                "subconscious_analysis": analysis,
+                "thought_type": "conscious_processed",
+                "subconscious_timestamp": datetime.now().isoformat()
+            }
+            
+            self.memory_module.store_episode(
+                f"Подсознание обработало: {thought_content}",
+                "subconscious_processing",
+                metadata
+            )
+        except Exception as e:
+            print(f"Ошибка интеграции с памятью: {e}")
+    
+    async def _integrate_with_world_model(self, thought_content: str, analysis: Dict[str, Any]):
+        """Интеграция с моделью мира"""
+        try:
+            # Обновление знаний о мире на основе подсознательного анализа
+            if analysis["importance"] > 0.6:
+                self.world_model.update_knowledge(
+                    f"Подсознание отметило важность: {thought_content}",
+                    source="subconscious",
+                    confidence=analysis["importance"]
+                )
+        except Exception as e:
+            print(f"Ошибка интеграции с моделью мира: {e}")
+    
+    async def _integrate_with_self_model(self, thought_content: str, intuitions: List[str]):
+        """Интеграция с self-model"""
+        try:
+            # Передача интуиций в self-model для рефлексии
+            if intuitions:
+                self.self_model.reflect_on_experience(
+                    "Подсознательные интуиции",
+                    {
+                        "thought_content": thought_content,
+                        "intuitions": intuitions,
+                        "source": "subconscious"
+                    }
+                )
+        except Exception as e:
+            print(f"Ошибка интеграции с self-model: {e}")
+    
+    def _assess_complexity(self, thought_content: str) -> float:
+        """Оценка сложности мысли"""
+        # Простая эвристика на основе длины и разнообразия слов
+        words = thought_content.split()
+        unique_words = set(words)
+        
+        complexity = len(words) / 100.0  # Нормализация по длине
+        complexity += len(unique_words) / len(words) * 0.5  # Разнообразие
+        
+        return min(1.0, complexity)
+    
+    def _analyze_emotional_tone(self, thought_content: str) -> float:
+        """Анализ эмоционального тона"""
+        emotional_words = {
+            "хорошо", "плохо", "отлично", "ужасно", "радость", "грусть",
+            "любовь", "ненависть", "надежда", "отчаяние", "успех", "неудача"
+        }
+        
+        words = thought_content.lower().split()
+        emotional_count = sum(1 for word in words if word in emotional_words)
+        
+        return min(1.0, emotional_count / len(words) * 10)
+    
+    def _assess_cognitive_load(self, thought_content: str) -> float:
+        """Оценка когнитивной нагрузки"""
+        # Оценка на основе сложности предложений
+        sentences = thought_content.split('.')
+        avg_sentence_length = sum(len(s.split()) for s in sentences) / len(sentences)
+        
+        return min(1.0, avg_sentence_length / 20.0)
+    
+    def _assess_novelty(self, thought_content: str) -> float:
+        """Оценка новизны мысли"""
+        # Простая эвристика - если мысль содержит новые слова
+        if hasattr(self, 'thought_history'):
+            all_previous_words = set()
+            for thought in self.thought_history:
+                all_previous_words.update(thought.lower().split())
+            
+            current_words = set(thought_content.lower().split())
+            new_words = current_words - all_previous_words
+            
+            return min(1.0, len(new_words) / len(current_words))
+        
+        return 0.5  # Базовый уровень
+    
+    def _assess_importance(self, thought_content: str, thought_type: str) -> float:
+        """Оценка важности мысли"""
+        importance = 0.5  # Базовый уровень
+        
+        # Важные ключевые слова
+        important_keywords = ["сознание", "искусственный", "интеллект", "обучение", "развитие"]
+        if any(keyword in thought_content.lower() for keyword in important_keywords):
+            importance += 0.3
+        
+        # Важные типы мыслей
+        if thought_type in ["reflection", "analysis", "insight"]:
+            importance += 0.2
+        
+        return min(1.0, importance)
+    
+    def _find_thought_connections(self, thought_content: str) -> List[str]:
+        """Поиск связей с предыдущими мыслями"""
         connections = []
         
-        for i, thought1 in enumerate(thoughts):
-            for j, thought2 in enumerate(thoughts[i+1:], i+1):
-                similarity = self._calculate_thought_similarity(thought1, thought2)
-                if similarity > 0.6:
-                    connections.append({
-                        "thought1": thought1.id,
-                        "thought2": thought2.id,
-                        "strength": similarity,
-                        "type": "semantic_connection"
-                    })
+        if hasattr(self, 'thought_history'):
+            for i, previous_thought in enumerate(self.thought_history[-5:]):
+                # Простая проверка на общие слова
+                common_words = set(thought_content.lower().split()) & set(previous_thought.lower().split())
+                if len(common_words) > 2:
+                    connections.append(f"Связь с мыслью {len(self.thought_history) - 5 + i}: {', '.join(common_words)}")
         
         return connections
     
-    def _calculate_thought_similarity(self, thought1: SubconsciousThought, thought2: SubconsciousThought) -> float:
-        """Рассчитать семантическое сходство мыслей"""
-        # Простая эвристика на основе общих слов
-        words1 = set(thought1.content.lower().split())
-        words2 = set(thought2.content.lower().split())
+    def _extract_themes(self, thought_content: str) -> List[str]:
+        """Извлечение тем из мысли"""
+        themes = []
         
-        if not words1 or not words2:
-            return 0.0
-        
-        intersection = len(words1.intersection(words2))
-        union = len(words1.union(words2))
-        
-        return intersection / union if union > 0 else 0.0
-    
-    async def _generate_connection_intuition(self, connection: Dict[str, Any]):
-        """Генерировать интуицию на основе связи мыслей"""
-        if not self.reasoning_orchestrator:
-            return
-        
-        # Найти связанные мысли
-        thought1 = next((t for t in self.subconscious_thoughts if t.id == connection["thought1"]), None)
-        thought2 = next((t for t in self.subconscious_thoughts if t.id == connection["thought2"]), None)
-        
-        if not thought1 or not thought2:
-            return
-        
-        intuition_request = ReasoningRequest(
-            prompt=f"Интуитивное озарение на основе связи мыслей:\nМысль 1: {thought1.content}\nМысль 2: {thought2.content}",
-            model_type=ModelType.SUBCONSCIOUS,
-            context={
-                "connection_strength": connection["strength"],
-                "connection_type": connection["type"]
-            },
-            priority=7
-        )
-        
-        request_id = await self.reasoning_orchestrator.submit_reasoning_request(intuition_request)
-        response = await self.reasoning_orchestrator.get_reasoning_response(request_id)
-        
-        if response and response.content:
-            self.stats["intuitions_generated"] += 1
-    
-    def get_subconscious_state(self) -> Dict[str, Any]:
-        """Получить состояние подсознания"""
-        recent_thoughts = [
-            t for t in self.subconscious_thoughts 
-            if (datetime.now() - t.timestamp).seconds < 3600
-        ]
-        
-        return {
-            "active_thoughts": len(recent_thoughts),
-            "intuitions_generated": self.stats["intuitions_generated"],
-            "patterns_discovered": self.stats["patterns_discovered"],
-            "emotional_insights": self.stats["emotional_insights"],
-            "creative_breakthroughs": self.stats["creative_breakthroughs"],
-            "recent_intuitions": [
-                {
-                    "content": t.content[:100] + "...",
-                    "intensity": t.intensity,
-                    "timestamp": t.timestamp.isoformat()
-                }
-                for t in recent_thoughts if t.process_type == SubconsciousProcessType.INTUITION
-            ],
-            "active_patterns": len(self.active_patterns)
+        # Простые темы на основе ключевых слов
+        theme_keywords = {
+            "сознание": ["сознание", "осознание", "самосознание"],
+            "обучение": ["обучение", "изучение", "познание"],
+            "развитие": ["развитие", "рост", "прогресс"],
+            "технология": ["технология", "искусственный", "интеллект"]
         }
+        
+        thought_lower = thought_content.lower()
+        for theme, keywords in theme_keywords.items():
+            if any(keyword in thought_lower for keyword in keywords):
+                themes.append(theme)
+        
+        return themes
+    
+    def _analyze_time_pattern(self, timestamp: str) -> str:
+        """Анализ временных паттернов"""
+        try:
+            dt = datetime.fromisoformat(timestamp)
+            hour = dt.hour
+            
+            if 6 <= hour < 12:
+                return "утренние мысли"
+            elif 12 <= hour < 18:
+                return "дневные мысли"
+            elif 18 <= hour < 24:
+                return "вечерние мысли"
+            else:
+                return "ночные мысли"
+        except:
+            return None
+    
+    def _extract_emotional_words(self, thought_content: str) -> List[str]:
+        """Извлечение эмоциональных слов"""
+        emotional_words = {
+            "радость", "счастье", "восторг", "удовольствие",
+            "грусть", "печаль", "тоска", "отчаяние",
+            "любовь", "нежность", "привязанность",
+            "гнев", "раздражение", "злость",
+            "страх", "тревога", "беспокойство",
+            "надежда", "вера", "оптимизм"
+        }
+        
+        words = thought_content.lower().split()
+        return [word for word in words if word in emotional_words]
+    
+    def _find_similar_thoughts(self, thought_content: str) -> List[str]:
+        """Поиск похожих мыслей"""
+        similar_thoughts = []
+        
+        if hasattr(self, 'thought_history'):
+            for thought in self.thought_history[-10:]:
+                # Простая проверка на схожесть
+                common_words = set(thought_content.lower().split()) & set(thought.lower().split())
+                if len(common_words) > 3:
+                    similar_thoughts.append(f"Схожая мысль: {thought[:50]}...")
+        
+        return similar_thoughts
+    
+    def _create_new_associations(self, thought_content: str, context: Dict[str, Any] = None) -> List[str]:
+        """Создание новых ассоциаций"""
+        associations = []
+        
+        # Ассоциации на основе контекста
+        if context:
+            if "emotional_state" in context:
+                associations.append(f"Эмоциональная ассоциация: {context['emotional_state']}")
+            if "current_goal" in context:
+                associations.append(f"Целевая ассоциация: {context['current_goal']}")
+        
+        # Ассоциации на основе содержания
+        themes = self._extract_themes(thought_content)
+        for theme in themes:
+            associations.append(f"Тематическая ассоциация: {theme}")
+        
+        return associations
 
 class EmotionalProcessor:
     """Процессор эмоциональных данных"""
