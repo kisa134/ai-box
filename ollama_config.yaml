@@ -1,0 +1,187 @@
+# Конфигурация Ollama для AIbox
+# Настройки моделей и их специализации
+
+ollama:
+  base_url: "http://localhost:11434"
+  timeout: 30
+  max_retries: 3
+
+models:
+  # Reasoning модели (логическое мышление)
+  reasoning:
+    mistral:latest:
+      type: "reasoning"
+      temperature: 0.7
+      max_tokens: 2048
+      vram_requirement: 8
+      priority: 8
+      description: "Быстрое логическое мышление"
+      
+    mixtral:latest:
+      type: "reasoning"
+      temperature: 0.6
+      max_tokens: 4096
+      vram_requirement: 24
+      priority: 9
+      description: "Мощное логическое мышление"
+      
+    llama3:latest:
+      type: "reasoning"
+      temperature: 0.7
+      max_tokens: 2048
+      vram_requirement: 16
+      priority: 7
+      description: "Сбалансированное логическое мышление"
+  
+  # Reflection модели (глубокая рефлексия)
+  reflection:
+    mistral:latest:
+      type: "reflection"
+      temperature: 0.8
+      max_tokens: 2048
+      vram_requirement: 8
+      priority: 8
+      description: "Глубокая саморефлексия"
+      
+    mixtral:latest:
+      type: "reflection"
+      temperature: 0.7
+      max_tokens: 4096
+      vram_requirement: 24
+      priority: 9
+      description: "Мощная саморефлексия"
+  
+  # Creative модели (творческие задачи)
+  creative:
+    mistral:latest:
+      type: "creative"
+      temperature: 0.9
+      max_tokens: 2048
+      vram_requirement: 8
+      priority: 7
+      description: "Творческое мышление"
+      
+    llama3:latest:
+      type: "creative"
+      temperature: 0.8
+      max_tokens: 2048
+      vram_requirement: 16
+      priority: 6
+      description: "Сбалансированное творчество"
+  
+  # Fast модели (быстрое мышление)
+  fast:
+    phi3:latest:
+      type: "fast"
+      temperature: 0.6
+      max_tokens: 1024
+      vram_requirement: 4
+      priority: 5
+      description: "Быстрые ответы"
+      
+    mistral:latest:
+      type: "fast"
+      temperature: 0.5
+      max_tokens: 1024
+      vram_requirement: 8
+      priority: 6
+      description: "Быстрое качественное мышление"
+  
+  # Subconscious модели (подсознание)
+  subconscious:
+    mistral:latest:
+      type: "subconscious"
+      temperature: 0.8
+      max_tokens: 2048
+      vram_requirement: 8
+      priority: 7
+      description: "Интуитивное мышление"
+      
+    llama3:latest:
+      type: "subconscious"
+      temperature: 0.7
+      max_tokens: 2048
+      vram_requirement: 16
+      priority: 6
+      description: "Глубинное мышление"
+  
+  # Testing модели (тестирование)
+  testing:
+    phi3:latest:
+      type: "testing"
+      temperature: 0.8
+      max_tokens: 1024
+      vram_requirement: 4
+      priority: 3
+      description: "Тестовые задачи"
+
+# Будущие модели для добавления
+future_models:
+  - name: "llama4:latest"
+    type: "reasoning"
+    vram_requirement: 32
+    priority: 10
+    description: "Llama 4 - новейшая модель"
+    
+  - name: "mistral-large:latest"
+    type: "reasoning"
+    vram_requirement: 48
+    priority: 10
+    description: "Mistral Large - мощная модель"
+    
+  - name: "deepseek:latest"
+    type: "reasoning"
+    vram_requirement: 24
+    priority: 9
+    description: "DeepSeek - специализированная модель"
+    
+  - name: "qwen3:latest"
+    type: "reasoning"
+    vram_requirement: 16
+    priority: 8
+    description: "Qwen 3 - китайская модель"
+    
+  - name: "gemma2:latest"
+    type: "reasoning"
+    vram_requirement: 12
+    priority: 7
+    description: "Gemma 2 - Google модель"
+    
+  - name: "mamba:latest"
+    type: "subconscious"
+    vram_requirement: 8
+    priority: 8
+    description: "Mamba - архитектура State Space"
+
+# Настройки ресурсов
+resources:
+  rtx_4090:
+    vram_total: 24
+    vram_reserved: 2
+    max_concurrent_models: 2
+    
+  rtx_4080:
+    vram_total: 16
+    vram_reserved: 1
+    max_concurrent_models: 1
+    
+  rtx_4070:
+    vram_total: 12
+    vram_reserved: 1
+    max_concurrent_models: 1
+
+# Настройки explainability
+explainability:
+  log_all_requests: true
+  log_reasoning_chains: true
+  log_resource_usage: true
+  log_model_switches: true
+  log_file: "reasoning_logs.jsonl"
+  max_log_size: 1000
+
+# Настройки производительности
+performance:
+  max_queue_size: 100
+  request_timeout: 30
+  model_switch_cooldown: 5
+  resource_check_interval: 10 
