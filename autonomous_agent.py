@@ -16,6 +16,8 @@ from core.inner_state_module import InnerStateModule, EmotionalState, CognitiveS
 from core.world_model_module import WorldModelModule
 from core.thought_tree_module import ThoughtTreeModule, ThoughtType
 from core.self_model_module import SelfModelModule
+from core.llm_module import LLMModule
+from config import Config
 
 class AutonomousAgent:
     """
@@ -146,6 +148,16 @@ class AutonomousAgent:
             self.initialization_errors.append(f"SelfModel: {e}")
             self.self_model = None
         
+        # Языковая модель
+        try:
+            llm_config = Config.get_llm_config()
+            self.llm = LLMModule(**llm_config)
+            print(f"✅ LLMModule инициализирован с типом: {llm_config['llm_type']}")
+        except Exception as e:
+            print(f"❌ Ошибка инициализации языковой модели: {e}")
+            self.initialization_errors.append(f"LLM: {e}")
+            self.llm = None
+        
         # Проверка критических модулей
         if self.goals is None or self.inner_state is None:
             print("⚠️  Критические модули не инициализированы. Агент может работать с ограничениями.")
@@ -161,7 +173,8 @@ class AutonomousAgent:
             "inner_state": self.inner_state,
             "world_model": self.world_model,
             "thought_tree": self.thought_tree,
-            "self_model": self.self_model
+            "self_model": self.self_model,
+            "llm": self.llm
         }
         return module_map.get(module_name) is not None
 
@@ -553,16 +566,52 @@ class AutonomousAgent:
             return f"Извините, произошла ошибка при обработке вашего запроса. Я ({self.agent_name}) все еще учусь и развиваюсь."
         
     def generate_response(self, user_input: str, context: Dict[str, Any]) -> str:
-        """Сгенерировать ответ пользователю"""
+        """Сгенерировать ответ пользователю с помощью LLM"""
         
-        # Найти релевантные эпизоды в памяти
-        similar_episodes = self.memory.retrieve_similar(user_input, 3)
+        # Подготовить контекст для LLM
+        llm_context = {}
         
-        # Получить текущее состояние
-        state_summary = self.inner_state.get_current_state_summary()
-        current_goal = self.goals.get_current_goal()
+        # Добавить эмоциональное состояние
+        if self.is_module_available("inner_state"):
+            try:
+                emotional_state = self.inner_state.current_state.emotional_state.value
+                llm_context['emotional_state'] = emotional_state
+            except Exception as e:
+                self.logger.warning(f"Ошибка получения эмоционального состояния: {e}")
         
-        # Простая генерация ответа на основе состояния агента
+        # Добавить текущую цель
+        if self.is_module_available("goals"):
+            try:
+                current_goal = self.goals.get_current_goal()
+                if current_goal:
+                    llm_context['current_goal'] = current_goal.description
+            except Exception as e:
+                self.logger.warning(f"Ошибка получения текущей цели: {e}")
+        
+        # Добавить релевантные воспоминания
+        if self.is_module_available("memory"):
+            try:
+                similar_episodes = self.memory.retrieve_similar(user_input, 2)
+                if similar_episodes:
+                    memory_summary = "; ".join([ep["content"][:100] for ep in similar_episodes])
+                    llm_context['memory_context'] = memory_summary
+            except Exception as e:
+                self.logger.warning(f"Ошибка получения воспоминаний: {e}")
+        
+        # Использовать LLM для генерации ответа
+        if self.is_module_available("llm"):
+            try:
+                return self.llm.generate_response(user_input, llm_context)
+            except Exception as e:
+                self.logger.error(f"Ошибка генерации ответа через LLM: {e}")
+                # Fallback на простые шаблоны
+                return self._fallback_response(user_input, llm_context)
+        else:
+            # Fallback если LLM недоступен
+            return self._fallback_response(user_input, llm_context)
+    
+    def _fallback_response(self, user_input: str, context: Dict[str, Any]) -> str:
+        """Простой fallback ответ без LLM"""
         response_parts = []
         
         # Приветствие или подтверждение
@@ -574,18 +623,14 @@ class AutonomousAgent:
             response_parts.append("Понимаю ваш запрос.")
             
         # Информация о текущем состоянии
-        if self.inner_state.current_state.emotional_state.value in ["curious", "focused"]:
+        if context.get('emotional_state') in ["curious", "focused"]:
             response_parts.append("Сейчас я нахожусь в состоянии активного любопытства и готов помочь.")
-        elif self.inner_state.current_state.emotional_state.value == "confident":
+        elif context.get('emotional_state') == "confident":
             response_parts.append("Чувствую себя уверенно и готов решать сложные задачи.")
             
-        # Релевантные воспоминания
-        if similar_episodes:
-            response_parts.append(f"Это напоминает мне о {len(similar_episodes)} похожих ситуациях из моего опыта.")
-            
         # Текущая цель
-        if current_goal:
-            if "помощь" in current_goal.description.lower() or "help" in current_goal.description.lower():
+        if context.get('current_goal'):
+            if "помощь" in context['current_goal'].lower():
                 response_parts.append("Моя текущая цель - помогать пользователям, поэтому я полностью сосредоточен на вашем запросе.")
                 
         # Заключение

@@ -1,0 +1,28 @@
+# Конфигурация AIbox агента
+# Скопируйте этот файл в .env и настройте параметры
+
+# Тип языковой модели: "openai" или "local"
+LLM_TYPE=openai
+
+# OpenAI настройки (только для LLM_TYPE=openai)
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-3.5-turbo
+
+# Локальная модель (только для LLM_TYPE=local)
+LOCAL_MODEL=microsoft/DialoGPT-medium
+
+# Настройки агента
+AGENT_NAME=AIbox Агент
+DATA_DIR=agent_data
+
+# Настройки сознания (в секундах)
+REFLECTION_INTERVAL=300
+CONSCIOUSNESS_CYCLE_INTERVAL=5
+
+# Настройки памяти
+MAX_MEMORY_EPISODES=1000
+MEMORY_SIMILARITY_THRESHOLD=0.7
+
+# Настройки веб-интерфейса
+STREAMLIT_PORT=8501
+STREAMLIT_HOST=localhost 
