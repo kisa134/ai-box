@@ -21,7 +21,7 @@ class ModelType(Enum):
     CREATIVE = "creative"        # Творческие задачи
     FAST = "fast"               # Быстрое мышление
     SUBCONSCIOUS = "subconscious" # Mamba, Qwen3
-    TESTING = "testing"         # Phi3 для тестов
+    TESTING = "testing"         # Для тестовых задач
 
 @dataclass
 class ModelConfig:
@@ -113,13 +113,13 @@ class OllamaClient:
                 vram_requirement=12,
                 priority=7
             ),
-            "phi3:latest": ModelConfig(
-                name="phi3:latest",
-                type=ModelType.TESTING,
-                temperature=0.8,
-                max_tokens=1024,
-                vram_requirement=4,
-                priority=3
+            "Hudson/mamba-chat:latest": ModelConfig(
+                name="Hudson/mamba-chat:latest",
+                type=ModelType.SUBCONSCIOUS,
+                temperature=0.7,
+                max_tokens=2048,
+                vram_requirement=8,
+                priority=6
             )
         }
     
@@ -407,7 +407,7 @@ class ReasoningOrchestrator:
                 return model_name
         
         # Если ничего не подходит, вернуть первую доступную
-        return available_models[0] if available_models else "phi3:latest"
+        return available_models[0] if available_models else "Hudson/mamba-chat:latest"
     
     def _build_system_prompt(self, model_type: ModelType, context: Dict[str, Any] = None) -> str:
         """Построить системный промпт"""

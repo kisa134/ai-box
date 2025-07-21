@@ -8,7 +8,7 @@ ollama list
 ```
 
 Должны быть доступны модели:
-- phi3:latest
+- Hudson/mamba-chat:latest
 - qwen3:latest  
 - deepseek-r1:latest
 - mixtral:latest
