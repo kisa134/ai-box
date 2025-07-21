@@ -66,6 +66,10 @@ class OllamaClient:
         self.available_models = {}
         self.model_configs = self._initialize_model_configs()
         
+        # Инициализация кэша
+        from core.ollama_cache import ollama_cache
+        self.ollama_cache = ollama_cache
+        
     def _initialize_model_configs(self) -> Dict[str, ModelConfig]:
         """Инициализация конфигураций моделей"""
         return {
@@ -158,7 +162,7 @@ class OllamaClient:
         
         # Проверить кэш
         cache_key = f"{prompt}_{model_name}_{temperature}_{max_tokens}"
-        cached_result = ollama_cache.get(prompt, model_name, {
+        cached_result = self.ollama_cache.get(prompt, model_name, {
             "temperature": temperature,
             "max_tokens": max_tokens,
             "system_prompt": system_prompt
@@ -175,8 +179,8 @@ class OllamaClient:
                 "confidence": cached_result.confidence,
                 "cached": True
             }
-        """Генерация ответа через Ollama"""
         
+        # Генерация ответа через Ollama
         if not self.session:
             await self.initialize()
         
@@ -221,7 +225,7 @@ class OllamaClient:
                     }
                     
                     # Сохранить в кэш
-                    ollama_cache.set(
+                    self.ollama_cache.set(
                         prompt=prompt,
                         model=model_name,
                         content=result["content"],
